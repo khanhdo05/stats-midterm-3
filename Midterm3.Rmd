@@ -1,0 +1,24 @@
+---
+title: "Midterm 3"
+author: "Joyce Gill, Khanh Do, Matthew Billings-Chiu"
+date: "2025-04-10"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(dplyr)
+library(ggplot2)
+```
+
+## Download Data
+```{r}
+## Data
+data <- read.csv("https://raw.githubusercontent.com/khanhdo05/stats-midterm-3/refs/heads/main/dating_app_behavior_dataset.csv")
+head(data)
+  
+```
+
