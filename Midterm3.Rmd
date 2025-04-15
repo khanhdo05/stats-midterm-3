@@ -44,7 +44,7 @@ mydb <- dbConnect(RSQLite::SQLite(), ":memory:")
 
 ```{r}
 # gender, sexual orientation, likes received DOES GENDER/SEX RELATE TO LIKES RECEIVED
-# dbExecute(mydb, "DROP TABLE `dating`")
+# dbExecute(mydb, "DROP TABLE `gender_related_to_sex`")
 dbExecute(mydb, "CREATE TABLE `gender_related_to_sex` (
   `ID` int(11) NOT NULL,
   `gender` varchar(255) NOT NULL,
@@ -53,7 +53,8 @@ dbExecute(mydb, "CREATE TABLE `gender_related_to_sex` (
 )")
 
 gender_related_to_sex_data <- data %>%
-  select(ID, gender, sexual_orientation, likes_received)
+  select(ID, gender, sexual_orientation, likes_received) %>%
+  filter(gender != 'Prefer Not to Say') # We are only interested in those we can identify their gender
 
 dbWriteTable(conn = mydb, name = 'gender_related_to_sex', value = gender_related_to_sex_data, append = TRUE, header = FALSE, row.names = FALSE)
 
