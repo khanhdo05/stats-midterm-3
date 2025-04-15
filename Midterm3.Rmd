@@ -12,13 +12,46 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(dplyr)
 library(ggplot2)
+library(tidyr)
+library(DBI)
+library(odbc)
+library(RMySQL)
+library(tidyverse)
+library(dbplyr)
+library(RSQLite)
 ```
 
-## Download Data
+swipe time, swipe ratio, app usage time label APP USAGE METRICS
+
+gender, sexual orientation, liked received DOES GENDER/SEX RELATE TO LIKES RECEIVED
+
+likes receivd, swipe right label, mutual matches and match outcome DOES NUM LIKES and HOW OFTEN U SWIPE GIVE GOOD MATCH RESULT
+
+## Read Data
 ```{r}
 ## Data
 data <- read.csv("https://raw.githubusercontent.com/khanhdo05/stats-midterm-3/refs/heads/main/dating_app_behavior_dataset.csv")
+data <- data %>% mutate(ID = row_number())
 head(data)
-  
 ```
+
+## Connect to Database
+```{r}
+mydb <- dbConnect(RSQLite::SQLite(), ":memory:")
+```
+
+```{r}
+dbExecute(mydb, "CREATE TABLE `dating` (
+  `app_usage_time_min` int(5) NOT NULL
+)")
+```
+
+```{r}
+dbWriteTable(conn = mydb, name = 'dating', value = data, append = TRUE, header = FALSE, row.names = FALSE)
+
+## Check
+dbGetQuery(mydb,"Select * from dating LIMIT 5;")
+```
+
+
 
