@@ -61,6 +61,32 @@ dbWriteTable(conn = mydb, name = 'gender_related_to_sex', value = gender_related
 dbGetQuery(mydb,"Select * from gender_related_to_sex LIMIT 5;")
 ```
 
+## Matthew
+
+likes received, swipe right label, mutual matches and match outcome
+```{r}
+dbExecute(mydb, "CREATE TABLE `net_outcome` (
+  `likes_received` int(11) NOT NULL,
+  `swipe_right_label` varchar(15) NOT NULL,
+  `mutual_matches` int(2) NOT NULL,
+  `match_outcome` varchar(30) NOT NULL,
+  `ID` int(5) NOT NULL
+)")
+
+net_outcome_data <- data %>%
+  select(likes_received, swipe_right_label, mutual_matches, match_outcome, ID)
+```
+
+```{r}
+## Fill Table
+dbWriteTable(conn = mydb, name = 'net_outcome', value = net_outcome_data, append = TRUE, header = FALSE, row.names = FALSE)
+
+## Check
+dbGetQuery(mydb,"Select * from net_outcome LIMIT 5;")
+```
+
+
+
 ```{r}
 dbExecute(mydb, "CREATE TABLE `dating` (
   `app_usage_time_min` int(5) NOT NULL
