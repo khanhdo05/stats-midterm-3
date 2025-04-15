@@ -21,12 +21,6 @@ library(dbplyr)
 library(RSQLite)
 ```
 
-swipe time, swipe ratio, app usage time label APP USAGE METRICS
-
-gender, sexual orientation, liked received DOES GENDER/SEX RELATE TO LIKES RECEIVED
-
-likes receivd, swipe right label, mutual matches and match outcome DOES NUM LIKES and HOW OFTEN U SWIPE GIVE GOOD MATCH RESULT
-
 ## Read Data
 ```{r}
 ## Data
@@ -41,17 +35,62 @@ mydb <- dbConnect(RSQLite::SQLite(), ":memory:")
 ```
 
 ```{r}
-dbExecute(mydb, "CREATE TABLE `dating` (
-  `app_usage_time_min` int(5) NOT NULL
+dbExecute(mydb, "CREATE TABLE `app_usage_metrics` (
+  `app_usage_time_label` varchar(25) NOT NULL,
+  `swipe_time_of_day` varchar(25) NOT NULL,
+  'last_active_hour' varchar(3) NOT NULL,
+  'ID' int(5)
 )")
 ```
 
 ```{r}
-dbWriteTable(conn = mydb, name = 'dating', value = data, append = TRUE, header = FALSE, row.names = FALSE)
+## Table 1: App Usage Metrics
 
-## Check
-dbGetQuery(mydb,"Select * from dating LIMIT 5;")
+app_usage_metrics_data <- data %>%
+  dplyr::select(ID, swipe_time_of_day, app_usage_time_label, last_active_hour)
+
+dbWriteTable(conn = mydb, name = 'app_usage_metrics', value = app_usage_metrics_data, append = TRUE, header = FALSE, row.names = FALSE)
+
+dbGetQuery(mydb,"Select * FROM app_usage_metrics LIMIT 5;")
 ```
 
+```{r}
+# Table 2: Does Gender and Sex Correlated to the Number of Likes Received
 
+dbExecute(mydb, "DROP TABLE `gender_related_to_sex`")
+dbExecute(mydb, "CREATE TABLE `gender_related_to_sex` (
+  `ID` int(11) NOT NULL,
+  `gender` varchar(255) NOT NULL,
+  `sexual_orientation` varchar(255) NOT NULL,
+  `likes_received` int(11) NOT NULL
+)")
+
+gender_related_to_sex_data <- data %>%
+  dplyr::select(ID, gender, sexual_orientation, likes_received) %>%
+  filter(gender != 'Prefer Not to Say') # We are only interested in those we can identify their gender
+
+dbWriteTable(conn = mydb, name = 'gender_related_to_sex', value = gender_related_to_sex_data, append = TRUE, header = FALSE, row.names = FALSE)
+
+dbGetQuery(mydb,"Select * from gender_related_to_sex LIMIT 5;")
+```
+
+```{r}
+## Table 3: Does the number of likes and how often you swipe correlate to good match results 
+
+## dbExecute(mydb, "DROP TABLE `net_outcome`")
+dbExecute(mydb, "CREATE TABLE `net_outcome` (
+  `likes_received` int(11) NOT NULL,
+  `swipe_right_label` varchar(15) NOT NULL,
+  `mutual_matches` int(2) NOT NULL,
+  `match_outcome` varchar(30) NOT NULL,
+  `ID` int(5) NOT NULL
+)")
+
+net_outcome_data <- data %>%
+  dplyr::select(likes_received, swipe_right_label, mutual_matches, match_outcome, ID)
+
+dbWriteTable(conn = mydb, name = 'net_outcome', value = net_outcome_data, append = TRUE, header = FALSE, row.names = FALSE)
+
+dbGetQuery(mydb,"Select * from net_outcome LIMIT 5;")
+```
 
