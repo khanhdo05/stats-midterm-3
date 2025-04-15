@@ -40,6 +40,27 @@ head(data)
 mydb <- dbConnect(RSQLite::SQLite(), ":memory:")
 ```
 
+## Khanh 
+
+```{r}
+# gender, sexual orientation, likes received DOES GENDER/SEX RELATE TO LIKES RECEIVED
+# dbExecute(mydb, "DROP TABLE `dating`")
+dbExecute(mydb, "CREATE TABLE `gender_related_to_sex` (
+  `ID` int(11) NOT NULL,
+  `gender` varchar(255) NOT NULL,
+  `sexual_orientation` varchar(255) NOT NULL,
+  `likes_received` int(11) NOT NULL
+)")
+
+gender_related_to_sex_data <- data %>%
+  select(ID, gender, sexual_orientation, likes_received)
+
+dbWriteTable(conn = mydb, name = 'gender_related_to_sex', value = gender_related_to_sex_data, append = TRUE, header = FALSE, row.names = FALSE)
+
+## Check
+dbGetQuery(mydb,"Select * from gender_related_to_sex LIMIT 5;")
+```
+
 ```{r}
 dbExecute(mydb, "CREATE TABLE `dating` (
   `app_usage_time_min` int(5) NOT NULL
