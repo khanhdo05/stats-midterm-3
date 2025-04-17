@@ -93,3 +93,18 @@ dbWriteTable(conn = mydb, name = 'net_outcome', value = net_outcome_data, append
 
 dbGetQuery(mydb,"Select * from net_outcome LIMIT 5;")
 ```
+app_usage_time_label - app_usage_time_min (inclusive)
+
+Barely - 0-4
+
+Very Low - 5-14
+
+Low - 15-29
+
+Moderate - 30-59
+
+High - 60-119
+
+Addicted - 120-179
+
+Extreme User - 180-300
