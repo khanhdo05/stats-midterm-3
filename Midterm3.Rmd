@@ -6,7 +6,7 @@ output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 ```
 
 ```{r}
@@ -21,14 +21,18 @@ library(dbplyr)
 library(RSQLite)
 ```
 
-# Data of Interest
+# Report
+
+## Data of Interest
 
 Our group chose a dating app behavior dataset because of its relevance in today’s tech-driven social interactions. It offers fascinating insights into user behavior, preferences, and match outcomes across gender, activity levels, and time-of-day usage patterns. This can inform better app design and user experience, which aligns with interests in data science, behavior analysis, and software product improvement.
 
 ```{r}
 ## Data
 data <- read.csv("https://raw.githubusercontent.com/khanhdo05/stats-midterm-3/refs/heads/main/dating_app_behavior_dataset.csv")
+head(data)
 ```
+
 
 ```{r}
 ## Connect to Database
@@ -198,6 +202,109 @@ dbWriteTable(conn = mydb, name = 'dating_app_techniques', value = dating_app_tec
 
 dbGetQuery(mydb,"Select * from dating_app_techniques LIMIT 5;")
 ```
+
+```{r}
+# Must include a function that when given a new row of information, adds it to the proper table(s)
+# Function to add new row to all tables
+add_user_data <- function(
+  gender, sexual_orientation, location_type, income_bracket, education_level, interest_tags,
+  app_usage_time_min, swipe_right_ratio,
+  likes_received, mutual_matches, profile_pics_count, bio_length,
+  message_sent_count, emoji_usage_rate, last_active_hour, swipe_time_of_day, match_outcome
+) {
+  gender_so_id <- paste(gender, sexual_orientation, sep = "-")
+  location_income_id <- paste(location_type, income_bracket, sep = "-")
+  
+  # Insert into demographics table
+  dbExecute(mydb, sprintf(
+    "INSERT INTO demographics VALUES ('%s', '%s', '%s', '%s')",
+    gender_so_id, location_income_id, education_level, interest_tags
+  ))
+
+  # Insert into usage_metrics table
+  dbExecute(mydb, sprintf(
+    "INSERT INTO usage_metrics VALUES (%d, %f)",
+    app_usage_time_min, swipe_right_ratio
+  ))
+  
+  # Insert into dating_app_techniques table
+  dbExecute(mydb, sprintf(
+    "INSERT INTO dating_app_techniques VALUES (%d, %d, %d, %d, %d, %f, %d, '%s', '%s')",
+    likes_received, mutual_matches, profile_pics_count, bio_length,
+    message_sent_count, emoji_usage_rate, last_active_hour,
+    swipe_time_of_day, match_outcome
+  ))
+}
+
+```
+
+
+## Description of Data Manipulation and SQL Tables Creation
+
+```{r}
+length(unique(data$gender))
+length(unique(data$sexual_orientation))
+length(unique(data$location_type))
+length(unique(data$income_bracket))
+```
+
+In total, we created 3 main tables and 4 smaller tables that require looking up information from the main tables in the corresponding smaller tables to make out the full dataset. Specifically, we divided this big dataset into 3 categories: 
+
+1. Demographics - which includes information about gender, sexual orientation, location, income bracket, education level and interest tags; However, since there are 6 choices for gender and 8 choices for sexual orientation, there are at most 6 × 8 = 48 combinations for this category; similarly, since there are 6 choices for location type and 7 choices for income bracket, there are at most 6 × 7 = 42 combinations for this category. We decided to drop these 4 columns in the big demographics table and have 2 sub-tables (`gender_so_label`, `location_income_label`) to store the different combinations instead.
+
+2. App Usage Metrics - which includes minimum app usage time, app usage time's label, swipe right ratio, swipe right's label; However, since there are 7 app usage time's labels and 4 swipe right's label, we dropped these two columns in the big app usage metrics table and store key-value store of range matched up with the labels in smaller supporting tables.
+
+3. Dating App Techniques - which includes how many likes received, mutual matches, count of profile pics, length of bio, how many message sent, emoji usage rate, last active hour, swipe time of the day, and match outcome.
+
+In summary, we created 7 tables that make up the whole data set.
+
+## Storage of Data is more Effiecient
+
+We used 7 normalized tables instead of keeping a single denormalized table. Let’s compute the total number of cells stored in the normalized format:
+
+- `gender_so_label`: 48 rows × 3 columns = 144
+- `location_income_label`: 42 rows × 3 columns = 126
+- `demographics`: 1000 rows × 4 columns = 4000
+- `app_usage_time_range_label`: 7 rows × 2 columns = 14
+- `swipe_right_range_label`: 4 rows × 2 columns = 8
+- `usage_metrics`: 1000 rows × 2 columns = 2000
+- `dating_app_techniques`: 1000 rows × 9 columns = 9000
+
+```{r}
+normalized_cells <- (
+  nrow(gender_so_table) * 3 +
+  nrow(location_income_table) * 3 +
+  nrow(demographics_data) * 4 +
+  nrow(usage_range_table) * 2 +
+  nrow(swipe_right_range_table) * 2 +
+  nrow(usage_metrics_data) * 2 +
+  nrow(dating_app_techniques_data) * 9
+)
+original_cells <- nrow(data) * ncol(data)
+
+paste("Normalized cells:", normalized_cells)
+paste("Original dataset cells:", original_cells)
+
+```
+
+**Total normalized cells: ~13,292**
+
+Compare this to the original dataset:
+- 1000 rows × 50 columns = **50,000 cells**
+
+This means our normalized structure saves a significant amount of storage and improves query performance by eliminating repetitive information.
+
+
+## Why Add Row?
+
+In the case of a dating app, this functionality allows the app to:
+
+- Add new user profiles as they register.
+- Continuously track updated behavior (e.g., app usage, swipes, messages).
+- Update or append user interactions without modifying the whole database.
+
+By designing our schema to support insertion through lookup tables and normalized references, we ensure scalability and modularity. For example, if a new gender-identity combination is introduced, we only need to update the `gender_so_label` table once and can reference it throughout the system.
+
 
 ```{r}
 dbDisconnect(mydb)
