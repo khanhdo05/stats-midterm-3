@@ -1,5 +1,5 @@
 ---
-title: "Midterm 3"
+title: "Midterm 3 Report: Managing a SQL Database"
 author: "Joyce Gill, Khanh Do, Matthew Billings-Chiu"
 date: "2025-04-10"
 output: pdf_document
@@ -21,119 +21,184 @@ library(dbplyr)
 library(RSQLite)
 ```
 
-## Read Data
+# Data of Interest
+
+Our group chose a dating app behavior dataset because of its relevance in today’s tech-driven social interactions. It offers fascinating insights into user behavior, preferences, and match outcomes across gender, activity levels, and time-of-day usage patterns. This can inform better app design and user experience, which aligns with interests in data science, behavior analysis, and software product improvement.
+
 ```{r}
 ## Data
 data <- read.csv("https://raw.githubusercontent.com/khanhdo05/stats-midterm-3/refs/heads/main/dating_app_behavior_dataset.csv")
-data <- data %>% mutate(ID = row_number())
-head(data)
 ```
 
-## Connect to Database
 ```{r}
+## Connect to Database
 mydb <- dbConnect(RSQLite::SQLite(), ":memory:")
 ```
 
 ```{r}
-dbExecute(mydb, "CREATE TABLE `app_usage_metrics` (
-  `app_usage_time_label` varchar(25) NOT NULL,
-  `swipe_time_of_day` varchar(25) NOT NULL,
-  'last_active_hour' varchar(3) NOT NULL,
-  'ID' int(5)
-)")
-```
+# Subtable: Gender-Sexual Orientation Pair
+gender_so_table <- data %>%
+  distinct(gender, sexual_orientation) %>%
+  arrange(gender, sexual_orientation) %>%
+  mutate(gender_sexual_orientation_id = paste(gender, sexual_orientation, sep = "-"))
 
-```{r}
-## Table 1: App Usage Metrics
+# View the table
+print(gender_so_table)
 
-app_usage_metrics_data <- data %>%
-  dplyr::select(ID, swipe_time_of_day, app_usage_time_label, last_active_hour)
+# Subtable: Location Type-Income Bracket Pair
+location_income_table <- data %>%
+  distinct(location_type, income_bracket) %>%
+  arrange(location_type, income_bracket) %>%
+  mutate(location_type_income_bracket_id = paste(location_type, income_bracket, sep = "-"))
 
-dbWriteTable(conn = mydb, name = 'app_usage_metrics', value = app_usage_metrics_data, append = TRUE, header = FALSE, row.names = FALSE)
+# View the table
+print(location_income_table)
 
-dbGetQuery(mydb,"Select * FROM app_usage_metrics LIMIT 5;")
-```
-
-```{r}
-# Table 2: Does Gender and Sex Correlated to the Number of Likes Received
-
-dbExecute(mydb, "DROP TABLE `gender_related_to_sex`")
-dbExecute(mydb, "CREATE TABLE `gender_related_to_sex` (
-  `ID` int(11) NOT NULL,
+# Make subtable in SQL
+dbExecute(mydb, "CREATE TABLE `gender_so_label` (
+  `gender_sexual_orientation_id` varchar(255) NOT NULL,
   `gender` varchar(255) NOT NULL,
-  `sexual_orientation` varchar(255) NOT NULL,
-  `likes_received` int(11) NOT NULL
-)")
+  `sexual_orientation` varchar(255) NOT NULL
+);")
 
-gender_related_to_sex_data <- data %>%
-  dplyr::select(ID, gender, sexual_orientation, likes_received) %>%
-  filter(gender != 'Prefer Not to Say') # We are only interested in those we can identify their gender
+dbWriteTable(conn = mydb, name = 'gender_so_label', value = gender_so_table, append = TRUE, header = FALSE, row.names = FALSE)
 
-dbWriteTable(conn = mydb, name = 'gender_related_to_sex', value = gender_related_to_sex_data, append = TRUE, header = FALSE, row.names = FALSE)
+dbGetQuery(mydb, "SELECT * FROM gender_so_label")
 
-dbGetQuery(mydb,"Select * from gender_related_to_sex LIMIT 5;")
+dbExecute(mydb, "CREATE TABLE `location_income_label` (
+  `location_type_income_bracket_id` varchar(255) NOT NULL,
+  `location_type` varchar(255) NOT NULL,
+  `income_bracket` varchar(255) NOT NULL
+);")
+
+dbWriteTable(conn = mydb, name = 'location_income_label', value = location_income_table, append = TRUE, header = FALSE, row.names = FALSE)
+
+dbGetQuery(mydb, "SELECT * FROM location_income_label")
+```
+```{r}
+## Table 1: Demographics
+data <- data %>%
+  left_join(
+    gender_so_table %>%
+      dplyr::select(gender, sexual_orientation, gender_sexual_orientation_id),
+    by = c("gender", "sexual_orientation")
+  ) %>%
+  left_join(
+    location_income_table %>%
+      dplyr::select(location_type, income_bracket, location_type_income_bracket_id),
+    by = c("location_type", "income_bracket")
+  ) %>%
+  distinct()
+
+demographics_data <- data %>%
+  dplyr::select(
+    gender_sexual_orientation_id,
+    location_type_income_bracket_id,
+    education_level,
+    interest_tags
+  )
+
+dbExecute(mydb, "CREATE TABLE `demographics` (
+  `gender_sexual_orientation_id` varchar(255) NOT NULL,
+  `location_type_income_bracket_id` varchar(255) NOT NULL,
+  `education_level` varchar(255) NOT NULL,
+  `interest_tags` varchar(255) NOT NULL
+);")
+
+dbWriteTable(conn = mydb, name = "demographics", value = demographics_data, append = TRUE, row.names = FALSE)
+
+dbGetQuery(mydb, "SELECT * FROM demographics LIMIT 5;")
 ```
 
 ```{r}
-## Table 3: Does the number of likes and how often you swipe correlate to good match results 
+## Subtable: app_usage_time_label
+usage_range_table <- data %>%
+  group_by(app_usage_time_label) %>%
+  summarise(
+    min_time = min(app_usage_time_min, na.rm = TRUE),
+    max_time = max(app_usage_time_min, na.rm = TRUE)
+  ) %>%
+  arrange(min_time) %>%
+  mutate(
+    range = paste0(min_time, "-", max_time)
+  ) %>%
+  dplyr::select(range = range, label = app_usage_time_label)
 
-## dbExecute(mydb, "DROP TABLE `net_outcome`")
-dbExecute(mydb, "CREATE TABLE `net_outcome` (
-  `likes_received` int(11) NOT NULL,
-  `swipe_right_label` varchar(15) NOT NULL,
-  `mutual_matches` int(2) NOT NULL,
-  `match_outcome` varchar(30) NOT NULL,
-  `ID` int(5) NOT NULL
-)")
+# View the table
+print(usage_range_table)  
 
-net_outcome_data <- data %>%
-  dplyr::select(likes_received, swipe_right_label, mutual_matches, match_outcome, ID)
+## Subtable: swipe_right_label
+swipe_right_range_table <- data %>%
+  group_by(swipe_right_label) %>%
+  summarise(
+    min_time = min(swipe_right_ratio, na.rm = TRUE),
+    max_time = max(swipe_right_ratio, na.rm = TRUE)
+  ) %>%
+  arrange(min_time) %>%
+  mutate(
+    range = paste0(min_time, "-", max_time)
+  ) %>%
+  dplyr::select(range = range, label = swipe_right_label)
 
-dbWriteTable(conn = mydb, name = 'net_outcome', value = net_outcome_data, append = TRUE, header = FALSE, row.names = FALSE)
+# View the table
+print(swipe_right_range_table)  
 
-dbGetQuery(mydb,"Select * from net_outcome LIMIT 5;")
+# Make subtable in SQL
+dbExecute(mydb, "CREATE TABLE `app_usage_time_range_label` (
+  `range` varchar(255) NOT NULL,
+  `label` varchar(255) NOT NULL
+);")
+
+dbWriteTable(conn = mydb, name = 'app_usage_time_range_label', value = usage_range_table, append = TRUE, header = FALSE, row.names = FALSE)
+
+dbGetQuery(mydb,"Select * from app_usage_time_range_label")
+
+dbExecute(mydb, "CREATE TABLE `swipe_right_range_label` (
+  `range` varchar(255) NOT NULL,
+  `label` varchar(255) NOT NULL
+);")
+
+dbWriteTable(conn = mydb, name = 'swipe_right_range_label', value = swipe_right_range_table, append = TRUE, header = FALSE, row.names = FALSE)
+
+dbGetQuery(mydb,"Select * from swipe_right_range_label")
 ```
-
-gender_related_to_sex_data <- data %>%
-  dplyr::select(ID, gender, sexual_orientation, likes_received) %>%
-  filter(gender != 'Prefer Not to Say') # We are only interested in those we can identify their gender
-
-dbWriteTable(conn = mydb, name = 'gender_related_to_sex', value = gender_related_to_sex_data, append = TRUE, header = FALSE, row.names = FALSE)
-
-dbGetQuery(mydb,"Select * from gender_related_to_sex LIMIT 5;")
+```{r}
+## Table 2: App Usage Metrics
 ```
 
 ```{r}
-## Table 3: Does the number of likes and how often you swipe correlate to good match results 
+## Table 3: Dating app techniques: 
+## likes_received, mutual_matches, profile_pics_count, bio_length, 
+## message_sent_count, emoji_usage_rate, last_active_hour, swipe_time_of_day, match_outcome
+dbExecute(mydb, "CREATE TABLE `dating_app_techniques` (
+  `likes_received` int(25) NOT NULL,
+  `mutual_matches` int(25) NOT NULL,
+  `profile_pics_count` int(25) NOT NULL,
+  `bio_length` int(25) NOT NULL,
+  `message_sent_count` int(25) NOT NULL,
+  `emoji_usage_rate` dbl(25) NOT NULL,
+  `last_active_hour` int(25) NOT NULL,
+  `swipe_time_of_day` varchar(255) NOT NULL,
+  `match_outcome` varchar(255) NOT NULL
+);")
 
-## dbExecute(mydb, "DROP TABLE `net_outcome`")
-dbExecute(mydb, "CREATE TABLE `net_outcome` (
-  `likes_received` int(11) NOT NULL,
-  `swipe_right_label` varchar(15) NOT NULL,
-  `mutual_matches` int(2) NOT NULL,
-  `match_outcome` varchar(30) NOT NULL,
-  `ID` int(5) NOT NULL
-)")
+dating_app_techniques_data <- data %>%
+  dplyr::select(
+    likes_received, mutual_matches, profile_pics_count, bio_length, 
+    message_sent_count, emoji_usage_rate, last_active_hour, 
+    swipe_time_of_day, match_outcome
+    )
 
-net_outcome_data <- data %>%
-  dplyr::select(likes_received, swipe_right_label, mutual_matches, match_outcome, ID)
+dbWriteTable(conn = mydb, name = 'dating_app_techniques', value = dating_app_techniques_data, append = TRUE, header = FALSE, row.names = FALSE)
 
-dbWriteTable(conn = mydb, name = 'net_outcome', value = net_outcome_data, append = TRUE, header = FALSE, row.names = FALSE)
-
-dbGetQuery(mydb,"Select * from net_outcome LIMIT 5;")
+dbGetQuery(mydb,"Select * from dating_app_techniques LIMIT 5;")
 ```
-app_usage_time_label - app_usage_time_min (inclusive)
 
-Barely - 0-4
+2. app usage metrics number: app usage time min, swipe right ratio
+  subtable for app usage time label, app usage time min (turned into a range), 
+  subtable for swipe right label, swipe right ratio (turned into a range)
+  
 
-Very Low - 5-14
-
-Low - 15-29
-
-Moderate - 30-59
-
-High - 60-119
-
-Addicted - 120-179
-
-Extreme User - 180-300
+```{r}
+dbDisconnect(mydb)
+```
