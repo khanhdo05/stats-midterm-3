@@ -75,6 +75,7 @@ dbWriteTable(conn = mydb, name = 'location_income_label', value = location_incom
 
 dbGetQuery(mydb, "SELECT * FROM location_income_label")
 ```
+
 ```{r}
 ## Table 1: Demographics
 data <- data %>%
@@ -124,8 +125,14 @@ usage_range_table <- data %>%
   ) %>%
   dplyr::select(range = range, label = app_usage_time_label)
 
-# View the table
-print(usage_range_table)  
+dbExecute(mydb, "CREATE TABLE `app_usage_time_range_label` (
+  `range` varchar(255) NOT NULL,
+  `label` varchar(255) NOT NULL
+);")
+
+dbWriteTable(conn = mydb, name = 'app_usage_time_range_label', value = usage_range_table, append = TRUE, header = FALSE, row.names = FALSE)
+
+dbGetQuery(mydb,"Select * from app_usage_time_range_label")
 
 ## Subtable: swipe_right_label
 swipe_right_range_table <- data %>%
@@ -140,19 +147,6 @@ swipe_right_range_table <- data %>%
   ) %>%
   dplyr::select(range = range, label = swipe_right_label)
 
-# View the table
-print(swipe_right_range_table)  
-
-# Make subtable in SQL
-dbExecute(mydb, "CREATE TABLE `app_usage_time_range_label` (
-  `range` varchar(255) NOT NULL,
-  `label` varchar(255) NOT NULL
-);")
-
-dbWriteTable(conn = mydb, name = 'app_usage_time_range_label', value = usage_range_table, append = TRUE, header = FALSE, row.names = FALSE)
-
-dbGetQuery(mydb,"Select * from app_usage_time_range_label")
-
 dbExecute(mydb, "CREATE TABLE `swipe_right_range_label` (
   `range` varchar(255) NOT NULL,
   `label` varchar(255) NOT NULL
@@ -161,9 +155,20 @@ dbExecute(mydb, "CREATE TABLE `swipe_right_range_label` (
 dbWriteTable(conn = mydb, name = 'swipe_right_range_label', value = swipe_right_range_table, append = TRUE, header = FALSE, row.names = FALSE)
 
 dbGetQuery(mydb,"Select * from swipe_right_range_label")
-```
-```{r}
+
 ## Table 2: App Usage Metrics
+## Look up these variables in app_usage_time_range_label and swipe_right_range_label for the labels
+dbExecute(mydb, "CREATE TABLE `usage_metrics` (
+  `app_usage_time_min` int(3) NOT NULL,
+  `swipe_right_ratio` dbl(3) NOT NULL
+)")
+
+usage_metrics_data <- data %>%
+  dplyr::select(app_usage_time_min, swipe_right_ratio)
+
+dbWriteTable(conn = mydb, name = 'usage_metrics', value = usage_metrics_data, append = TRUE, header = FALSE, row.names = FALSE)
+
+dbGetQuery(mydb,"Select * from usage_metrics LIMIT 5;")
 ```
 
 ```{r}
@@ -193,11 +198,6 @@ dbWriteTable(conn = mydb, name = 'dating_app_techniques', value = dating_app_tec
 
 dbGetQuery(mydb,"Select * from dating_app_techniques LIMIT 5;")
 ```
-
-2. app usage metrics number: app usage time min, swipe right ratio
-  subtable for app usage time label, app usage time min (turned into a range), 
-  subtable for swipe right label, swipe right ratio (turned into a range)
-  
 
 ```{r}
 dbDisconnect(mydb)
