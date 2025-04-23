@@ -2,7 +2,10 @@
 title: "Midterm 3 Report: Managing a SQL Database"
 author: "Joyce Gill, Khanh Do, Matthew Billings-Chiu"
 date: "2025-04-10"
-output: pdf_document
+output: 
+  pdf_document:
+    extra_dependencies: ["geometry"]
+    pandoc_args: ["--variable=geometry:top=0.25in"]
 ---
 
 ```{r setup, include=FALSE}
@@ -21,25 +24,24 @@ library(dbplyr)
 library(RSQLite)
 ```
 
-# Report
+## Report
 
-## Data of Interest
+### Data of Interest
 
 Our group chose a dating app behavior dataset because of its relevance in today’s tech-driven social interactions. It offers fascinating insights into user behavior, preferences, and match outcomes across gender, activity levels, and time-of-day usage patterns. This can inform better app design and user experience, which aligns with interests in data science, behavior analysis, and software product improvement.
 
 ```{r}
 ## Data
 data <- read.csv("https://raw.githubusercontent.com/khanhdo05/stats-midterm-3/refs/heads/main/dating_app_behavior_dataset.csv")
-head(data)
 ```
 
 
 ```{r}
-## Connect to Database
+# Connect to Database
 mydb <- dbConnect(RSQLite::SQLite(), ":memory:")
 ```
 
-```{r}
+```{r, echo=FALSE, results='hide'}
 # Subtable: Gender-Sexual Orientation Pair
 gender_so_table <- data %>%
   distinct(gender, sexual_orientation) %>%
@@ -80,8 +82,8 @@ dbWriteTable(conn = mydb, name = 'location_income_label', value = location_incom
 # dbGetQuery(mydb, "SELECT * FROM location_income_label")
 ```
 
-```{r}
-## Table 1: Demographics
+```{r, echo=FALSE, results='hide'}
+# Table 1: Demographics
 data <- data %>%
   left_join(
     gender_so_table %>%
@@ -139,7 +141,7 @@ data <- data %>%
   )
 ```
 
-```{r}
+```{r, echo=FALSE, results='hide'}
 ## Subtable: app_usage_time_label
 usage_range_table <- data %>%
   group_by(app_usage_time_label) %>%
@@ -199,8 +201,8 @@ dbWriteTable(conn = mydb, name = 'usage_metrics', value = usage_metrics_data, ap
 # dbGetQuery(mydb,"Select * from usage_metrics LIMIT 5;")
 ```
 
-```{r}
-## Table 3: Dating app techniques:
+```{r, echo=FALSE, results='hide'}
+# Table 3: Dating app techniques:
 dbExecute(mydb, "CREATE TABLE `dating_app_techniques` (
   `likes_received` int(25) NOT NULL,
   `mutual_matches` int(25) NOT NULL,
@@ -225,10 +227,10 @@ dbWriteTable(conn = mydb, name = 'dating_app_techniques', value = dating_app_tec
 # dbGetQuery(mydb,"Select * from dating_app_techniques LIMIT 5;")
 ```
 
-```{r}
-## A function that when given a new row of information, adds it to the proper table(s)
-## Assume that for categorical variable, inputs are valid - meaning that they are not
-## something that hasn't been seen in the original dataset.
+```{r, echo=FALSE, results='hide'}
+# A function that when given a new row of information, adds it to the proper table(s)
+# Assume that for categorical variable, inputs are valid - meaning that they are not
+# something that hasn't been seen in the original dataset.
 add_user_data <- function(
   gender, 
   sexual_orientation, 
@@ -274,7 +276,7 @@ add_user_data <- function(
   ))
 }
 
-## Verified function works
+# Verified function works
 # add_user_data("Male", "Gay", "Urban", "Low", "PhD", "Yoga", 138, "Addicted", 0.47, "Optimistic", 250, 9, 4, 230, 10, 0.23, 3, "Morning", "Date Happened")
 # dbGetQuery(mydb, "SELECT * FROM demographics ORDER BY ROWID DESC LIMIT 1;")
 # dbGetQuery(mydb, "SELECT * FROM usage_metrics ORDER BY ROWID DESC LIMIT 1;")
@@ -282,8 +284,8 @@ add_user_data <- function(
 ```
 
 ```{r}
-## Delete Row
-## Each row is unique so we don't maintain separate unique id but use row number
+# Delete Row
+# Each row is unique so we don't maintain separate unique id but use row number
 delete_row_by_number <- function(conn, tables, row_number) {
   for (table in tables) {
     query <- sprintf("
@@ -297,19 +299,19 @@ delete_row_by_number <- function(conn, tables, row_number) {
   }
 }
 
-## example usage: delete row 1 from the dataset
+# example usage: delete row 1 from the dataset
 # meaning we delete row 5 from the 3 main tables
 # delete_row_by_number(mydb, tables = c("demographics", "usage_metrics", "dating_app_techniques"), row_number = 1)
 # dbGetQuery(mydb,"Select * from dating_app_techniques LIMIT 5;")
 
 
-## Delete Table
+# Delete Table
 # Delete table demographics
 # dbExecute(HW8DB, "DROP TABLE demographics")
-## Similarly, just run this query and change appropriate table_name
+# Similarly, just run this query and change appropriate table_name
 ```
 
-## Description of Data Manipulation and SQL Tables Creation
+### Description of Efficient Data Storage
 
 ```{r}
 # length(unique(data$gender))
@@ -318,19 +320,15 @@ delete_row_by_number <- function(conn, tables, row_number) {
 # length(unique(data$income_bracket))
 ```
 
-In total, we created 3 main tables and 4 smaller tables that require looking up information from the main tables in the corresponding smaller tables to make out the full dataset. Specifically, we divided this big dataset into 3 categories: 
+We divided this big dataset into 3 categories (7 tables that make up the whole dataset): 
 
-1. Demographics - which includes information about gender, sexual orientation, location, income bracket, education level and interest tags; However, since there are 6 choices for gender and 8 choices for sexual orientation, there are at most 6 × 8 = 48 combinations for this category; similarly, since there are 6 choices for location type and 7 choices for income bracket, there are at most 6 × 7 = 42 combinations for this category. We decided to drop these 4 columns in the big demographics table and have 2 sub-tables (`gender_so_label`, `location_income_label`) to store the different combinations instead.
+1. **Demographics** – Includes gender, sexual orientation, location, income bracket, education, and interests. Due to limited combinations (48 for gender/sexual orientation and 42 for location/income), we moved these into two separate sub-tables: `gender_so_label` and `location_income_label`.
 
-2. App Usage Metrics - which includes minimum app usage time, app usage time's label, swipe right ratio, swipe right's label; However, since there are 7 app usage time's labels and 4 swipe right's label, we dropped these two columns in the big app usage metrics table and store key-value store of range matched up with the labels in smaller supporting tables.
+2. **App Usage Metrics** – Covers app usage time, swipe right ratio, and their corresponding labels. With only 7 time labels and 4 swipe labels, we extracted them into two smaller tables and removed the label columns from the main table.
 
-3. Dating App Techniques - which includes how many likes received, mutual matches, count of profile pics, length of bio, how many message sent, emoji usage rate, last active hour, swipe time of the day, and match outcome.
+3. **Dating App Techniques** – Tracks likes received, mutual matches, profile picture count, bio length, messages sent, emoji usage rate, last active hour, swipe time, and match outcome.
 
-In summary, we created 7 tables that make up the whole data set.
-
-## Storage of Data is more Effiecient
-
-We used 7 normalized tables instead of keeping a single denormalized table. Our calculations show that the total number of cells from our 7 tables are way less than the number of cells of the original single dataset.
+Our calculations show that the total number of cells from our 7 tables are way less than the number of cells of the original single dataset.
 
 ```{r}
 normalized_cells <- (
@@ -344,14 +342,10 @@ normalized_cells <- (
 )
 original_cells <- nrow(data) * ncol(data)
 
-paste("Normalized cells:", normalized_cells)
-paste("Original dataset cells:", original_cells)
+paste("Normalized cells:", normalized_cells, ". Original dataset cells:", original_cells)
 ```
 
-This means our SQL tables saves a significant amount of storage and improves query performance by eliminating repetitive information.
-
-
-## Why Add Row?
+### Why Add Row?
 
 In the case of storing data and metrics of a dating app, this functionality allows the app to:
 
@@ -359,8 +353,7 @@ In the case of storing data and metrics of a dating app, this functionality allo
 - Continuously track updated behavior (e.g., app usage, swipes, messages).
 - Update or append user interactions without modifying the whole database.
 
-By designing our schema to support insertion through lookup tables and normalized references, we ensure scalability and modularity. For example, if a new gender-identity combination is introduced, we only need to update the `gender_so_label` table once and can reference it throughout the system.
-
+By designing our schema to support adding row through lookup tables and normalized references, we ensure scalability and modularity. For example, if a new gender-identity combination is introduced, we only need to update the `gender_so_label` table once and can reference it throughout the system.
 
 ```{r}
 dbDisconnect(mydb)
