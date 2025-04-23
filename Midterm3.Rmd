@@ -47,7 +47,7 @@ gender_so_table <- data %>%
   mutate(gender_sexual_orientation_id = paste(gender, sexual_orientation, sep = "-"))
 
 # View the table
-print(gender_so_table)
+# print(gender_so_table)
 
 # Subtable: Location Type-Income Bracket Pair
 location_income_table <- data %>%
@@ -56,7 +56,7 @@ location_income_table <- data %>%
   mutate(location_type_income_bracket_id = paste(location_type, income_bracket, sep = "-"))
 
 # View the table
-print(location_income_table)
+# print(location_income_table)
 
 # Make subtable in SQL
 dbExecute(mydb, "CREATE TABLE `gender_so_label` (
@@ -67,7 +67,7 @@ dbExecute(mydb, "CREATE TABLE `gender_so_label` (
 
 dbWriteTable(conn = mydb, name = 'gender_so_label', value = gender_so_table, append = TRUE, header = FALSE, row.names = FALSE)
 
-dbGetQuery(mydb, "SELECT * FROM gender_so_label")
+# dbGetQuery(mydb, "SELECT * FROM gender_so_label")
 
 dbExecute(mydb, "CREATE TABLE `location_income_label` (
   `location_type_income_bracket_id` varchar(255) NOT NULL,
@@ -77,7 +77,7 @@ dbExecute(mydb, "CREATE TABLE `location_income_label` (
 
 dbWriteTable(conn = mydb, name = 'location_income_label', value = location_income_table, append = TRUE, header = FALSE, row.names = FALSE)
 
-dbGetQuery(mydb, "SELECT * FROM location_income_label")
+# dbGetQuery(mydb, "SELECT * FROM location_income_label")
 ```
 
 ```{r}
@@ -112,7 +112,31 @@ dbExecute(mydb, "CREATE TABLE `demographics` (
 
 dbWriteTable(conn = mydb, name = "demographics", value = demographics_data, append = TRUE, row.names = FALSE)
 
-dbGetQuery(mydb, "SELECT * FROM demographics LIMIT 5;")
+# dbGetQuery(mydb, "SELECT * FROM demographics LIMIT 5;")
+
+## Return data to its original form
+data <- data %>%
+  select(
+    gender, 
+    sexual_orientation, 
+    location_type, 
+    income_bracket, 
+    education_level, 
+    interest_tags,
+    app_usage_time_min, 
+    app_usage_time_label,
+    swipe_right_ratio,
+    swipe_right_label,
+    likes_received, 
+    mutual_matches, 
+    profile_pics_count, 
+    bio_length,
+    message_sent_count, 
+    emoji_usage_rate, 
+    last_active_hour, 
+    swipe_time_of_day, 
+    match_outcome
+  )
 ```
 
 ```{r}
@@ -136,7 +160,7 @@ dbExecute(mydb, "CREATE TABLE `app_usage_time_range_label` (
 
 dbWriteTable(conn = mydb, name = 'app_usage_time_range_label', value = usage_range_table, append = TRUE, header = FALSE, row.names = FALSE)
 
-dbGetQuery(mydb,"Select * from app_usage_time_range_label")
+# dbGetQuery(mydb,"Select * from app_usage_time_range_label")
 
 ## Subtable: swipe_right_label
 swipe_right_range_table <- data %>%
@@ -158,7 +182,7 @@ dbExecute(mydb, "CREATE TABLE `swipe_right_range_label` (
 
 dbWriteTable(conn = mydb, name = 'swipe_right_range_label', value = swipe_right_range_table, append = TRUE, header = FALSE, row.names = FALSE)
 
-dbGetQuery(mydb,"Select * from swipe_right_range_label")
+# dbGetQuery(mydb,"Select * from swipe_right_range_label")
 
 ## Table 2: App Usage Metrics
 ## Look up these variables in app_usage_time_range_label and swipe_right_range_label for the labels
@@ -172,13 +196,11 @@ usage_metrics_data <- data %>%
 
 dbWriteTable(conn = mydb, name = 'usage_metrics', value = usage_metrics_data, append = TRUE, header = FALSE, row.names = FALSE)
 
-dbGetQuery(mydb,"Select * from usage_metrics LIMIT 5;")
+# dbGetQuery(mydb,"Select * from usage_metrics LIMIT 5;")
 ```
 
 ```{r}
-## Table 3: Dating app techniques: 
-## likes_received, mutual_matches, profile_pics_count, bio_length, 
-## message_sent_count, emoji_usage_rate, last_active_hour, swipe_time_of_day, match_outcome
+## Table 3: Dating app techniques:
 dbExecute(mydb, "CREATE TABLE `dating_app_techniques` (
   `likes_received` int(25) NOT NULL,
   `mutual_matches` int(25) NOT NULL,
@@ -200,17 +222,33 @@ dating_app_techniques_data <- data %>%
 
 dbWriteTable(conn = mydb, name = 'dating_app_techniques', value = dating_app_techniques_data, append = TRUE, header = FALSE, row.names = FALSE)
 
-dbGetQuery(mydb,"Select * from dating_app_techniques LIMIT 5;")
+# dbGetQuery(mydb,"Select * from dating_app_techniques LIMIT 5;")
 ```
 
 ```{r}
-# Must include a function that when given a new row of information, adds it to the proper table(s)
-# Function to add new row to all tables
+## A function that when given a new row of information, adds it to the proper table(s)
+## Assume that for categorical variable, inputs are valid - meaning that they are not
+## something that hasn't been seen in the original dataset.
 add_user_data <- function(
-  gender, sexual_orientation, location_type, income_bracket, education_level, interest_tags,
-  app_usage_time_min, swipe_right_ratio,
-  likes_received, mutual_matches, profile_pics_count, bio_length,
-  message_sent_count, emoji_usage_rate, last_active_hour, swipe_time_of_day, match_outcome
+  gender, 
+  sexual_orientation, 
+  location_type, 
+  income_bracket, 
+  education_level, 
+  interest_tags,
+  app_usage_time_min, 
+  app_usage_time_label,
+  swipe_right_ratio,
+  swipe_right_label,
+  likes_received, 
+  mutual_matches, 
+  profile_pics_count, 
+  bio_length,
+  message_sent_count, 
+  emoji_usage_rate, 
+  last_active_hour, 
+  swipe_time_of_day, 
+  match_outcome
 ) {
   gender_so_id <- paste(gender, sexual_orientation, sep = "-")
   location_income_id <- paste(location_type, income_bracket, sep = "-")
@@ -236,16 +274,48 @@ add_user_data <- function(
   ))
 }
 
+## Verified function works
+# add_user_data("Male", "Gay", "Urban", "Low", "PhD", "Yoga", 138, "Addicted", 0.47, "Optimistic", 250, 9, 4, 230, 10, 0.23, 3, "Morning", "Date Happened")
+# dbGetQuery(mydb, "SELECT * FROM demographics ORDER BY ROWID DESC LIMIT 1;")
+# dbGetQuery(mydb, "SELECT * FROM usage_metrics ORDER BY ROWID DESC LIMIT 1;")
+# dbGetQuery(mydb, "SELECT * FROM dating_app_techniques ORDER BY ROWID DESC LIMIT 1;")
 ```
 
+```{r}
+## Delete Row
+## Each row is unique so we don't maintain separate unique id but use row number
+delete_row_by_number <- function(conn, tables, row_number) {
+  for (table in tables) {
+    query <- sprintf("
+      DELETE FROM %s
+      WHERE ROWID = (
+        SELECT ROWID FROM %s
+        LIMIT 1 OFFSET %d
+      );
+    ", table, table, row_number - 1)  # offset is 0-based
+    dbExecute(conn, query)
+  }
+}
+
+## example usage: delete row 1 from the dataset
+# meaning we delete row 5 from the 3 main tables
+# delete_row_by_number(mydb, tables = c("demographics", "usage_metrics", "dating_app_techniques"), row_number = 1)
+# dbGetQuery(mydb,"Select * from dating_app_techniques LIMIT 5;")
+
+
+## Delete Table
+# Delete table demographics
+# dbExecute(HW8DB, "DROP TABLE demographics")
+## Similarly, just run this query and change appropriate table_name
+```
 
 ## Description of Data Manipulation and SQL Tables Creation
 
 ```{r}
-length(unique(data$gender))
-length(unique(data$sexual_orientation))
-length(unique(data$location_type))
-length(unique(data$income_bracket))
+# length(unique(data$gender))
+# length(unique(data$sexual_orientation))
+# length(unique(data$location_type))
+# length(unique(data$income_bracket))
 ```
 
 In total, we created 3 main tables and 4 smaller tables that require looking up information from the main tables in the corresponding smaller tables to make out the full dataset. Specifically, we divided this big dataset into 3 categories: 
@@ -260,44 +330,30 @@ In summary, we created 7 tables that make up the whole data set.
 
 ## Storage of Data is more Effiecient
 
-We used 7 normalized tables instead of keeping a single denormalized table. Let’s compute the total number of cells stored in the normalized format:
-
-- `gender_so_label`: 48 rows × 3 columns = 144
-- `location_income_label`: 42 rows × 3 columns = 126
-- `demographics`: 1000 rows × 4 columns = 4000
-- `app_usage_time_range_label`: 7 rows × 2 columns = 14
-- `swipe_right_range_label`: 4 rows × 2 columns = 8
-- `usage_metrics`: 1000 rows × 2 columns = 2000
-- `dating_app_techniques`: 1000 rows × 9 columns = 9000
+We used 7 normalized tables instead of keeping a single denormalized table. Our calculations show that the total number of cells from our 7 tables are way less than the number of cells of the original single dataset.
 
 ```{r}
 normalized_cells <- (
-  nrow(gender_so_table) * 3 +
-  nrow(location_income_table) * 3 +
-  nrow(demographics_data) * 4 +
-  nrow(usage_range_table) * 2 +
-  nrow(swipe_right_range_table) * 2 +
-  nrow(usage_metrics_data) * 2 +
-  nrow(dating_app_techniques_data) * 9
+  nrow(gender_so_table) * ncol(gender_so_table) +
+  nrow(location_income_table) * ncol(location_income_table) +
+  nrow(demographics_data) * ncol(demographics_data) +
+  nrow(usage_range_table) * ncol(usage_range_table) +
+  nrow(swipe_right_range_table) * ncol(swipe_right_range_table) +
+  nrow(usage_metrics_data) * ncol(usage_metrics_data) +
+  nrow(dating_app_techniques_data) * ncol(dating_app_techniques_data)
 )
 original_cells <- nrow(data) * ncol(data)
 
 paste("Normalized cells:", normalized_cells)
 paste("Original dataset cells:", original_cells)
-
 ```
 
-**Total normalized cells: ~13,292**
-
-Compare this to the original dataset:
-- 1000 rows × 50 columns = **50,000 cells**
-
-This means our normalized structure saves a significant amount of storage and improves query performance by eliminating repetitive information.
+This means our SQL tables saves a significant amount of storage and improves query performance by eliminating repetitive information.
 
 
 ## Why Add Row?
 
-In the case of a dating app, this functionality allows the app to:
+In the case of storing data and metrics of a dating app, this functionality allows the app to:
 
 - Add new user profiles as they register.
 - Continuously track updated behavior (e.g., app usage, swipes, messages).
